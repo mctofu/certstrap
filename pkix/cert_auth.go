@@ -59,8 +59,6 @@ var (
 		// activate CA
 		BasicConstraintsValid: true,
 		IsCA: true,
-		// Not allow any non-self-issued intermediate CA, sets MaxPathLen=0
-		MaxPathLenZero: true,
 
 		// 160-bit SHA-1 hash of the value of the BIT STRING subjectPublicKey
 		// (excluding the tag, length, and number of unused bits)
@@ -77,7 +75,7 @@ var (
 
 // CreateCertificateAuthority creates Certificate Authority using existing key.
 // CertificateAuthorityInfo returned is the extra infomation required by Certificate Authority.
-func CreateCertificateAuthority(key *Key, organizationalUnit string, expiry time.Time, organization string, country string, province string, locality string, commonName string) (*Certificate, error) {
+func CreateCertificateAuthority(key *Key, organizationalUnit string, expiry time.Time, organization string, country string, province string, locality string, commonName string, pathLength *int) (*Certificate, error) {
 	subjectKeyID, err := GenerateSubjectKeyID(key.Public)
 	if err != nil {
 		return nil, err
@@ -101,6 +99,13 @@ func CreateCertificateAuthority(key *Key, organizationalUnit string, expiry time
 	}
 	if len(commonName) > 0 {
 		authTemplate.Subject.CommonName = commonName
+	}
+	if pathLength != nil {
+		if *pathLength == 0 {
+			authTemplate.MaxPathLenZero = true
+		} else {
+			authTemplate.MaxPathLen = *pathLength
+		}
 	}
 
 	crtBytes, err := x509.CreateCertificate(rand.Reader, &authTemplate, &authTemplate, key.Public, key.Private)

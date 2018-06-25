@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/square/certstrap/Godeps/_workspace/src/github.com/codegangsta/cli"
@@ -45,6 +46,7 @@ func NewInitCommand() cli.Command {
 			cli.StringFlag{"common-name, cn", "", "CA Common Name", ""},
 			cli.StringFlag{"province, st", "", "CA state/province", ""},
 			cli.StringFlag{"locality, l", "", "CA locality", ""},
+			cli.StringFlag{"path-length, pl", "0", "Path length basic constraint", ""},
 			cli.StringFlag{"key", "", "Path to private key PEM file.  If blank, will generate new keypair.", ""},
 			cli.BoolFlag{"stdout", "Print CA certificate to stdout in addition to saving file", ""},
 		},
@@ -80,6 +82,16 @@ func initAction(c *cli.Context) {
 		os.Exit(1)
 	}
 
+	var pathLength *int
+	if val := c.String("path-length"); val != "none" {
+		valInt, err := strconv.Atoi(val)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Parse path-length error:", err)
+			os.Exit(1)
+		}
+		pathLength = &valInt
+	}
+
 	var passphrase []byte
 	if c.IsSet("passphrase") {
 		passphrase = []byte(c.String("passphrase"))
@@ -113,7 +125,7 @@ func initAction(c *cli.Context) {
 		}
 	}
 
-	crt, err := pkix.CreateCertificateAuthority(key, c.String("organizational-unit"), expiresTime, c.String("organization"), c.String("country"), c.String("province"), c.String("locality"), c.String("common-name"))
+	crt, err := pkix.CreateCertificateAuthority(key, c.String("organizational-unit"), expiresTime, c.String("organization"), c.String("country"), c.String("province"), c.String("locality"), c.String("common-name"), pathLength)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Create certificate error:", err)
 		os.Exit(1)

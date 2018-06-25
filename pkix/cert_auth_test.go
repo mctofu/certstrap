@@ -28,28 +28,50 @@ func TestCreateCertificateAuthority(t *testing.T) {
 		t.Fatal("Failed creating rsa key:", err)
 	}
 
-	crt, err := CreateCertificateAuthority(key, "OU", time.Now().AddDate(5, 0, 0), "test", "US", "California", "San Francisco", "CA Name")
-	if err != nil {
-		t.Fatal("Failed creating certificate authority:", err)
-	}
-	rawCrt, err := crt.GetRawCertificate()
-	if err != nil {
-		t.Fatal("Failed to get x509.Certificate:", err)
-	}
-
-	if err = rawCrt.CheckSignatureFrom(rawCrt); err != nil {
-		t.Fatal("Failed to check signature:", err)
-	}
-
-	if rawCrt.Subject.OrganizationalUnit[0] != "OU" {
-		t.Fatal("Failed to verify hostname:", err)
+	zero := 0
+	one := 1
+	tests := []struct {
+		expectMaxPathLen     int
+		expectMaxPathLenZero bool
+		pathLength           *int
+	}{
+		{-1, false, nil},
+		{0, true, &zero},
+		{1, false, &one},
 	}
 
-	if !time.Now().After(rawCrt.NotBefore) {
-		t.Fatal("Failed to be after NotBefore")
-	}
+	for _, test := range tests {
+		crt, err := CreateCertificateAuthority(key, "OU", time.Now().AddDate(5, 0, 0), "test", "US", "California", "San Francisco", "CA Name", test.pathLength)
+		if err != nil {
+			t.Fatal("Failed creating certificate authority:", err)
+		}
+		rawCrt, err := crt.GetRawCertificate()
+		if err != nil {
+			t.Fatal("Failed to get x509.Certificate:", err)
+		}
 
-	if !time.Now().Before(rawCrt.NotAfter) {
-		t.Fatal("Failed to be before NotAfter")
+		if err = rawCrt.CheckSignatureFrom(rawCrt); err != nil {
+			t.Fatal("Failed to check signature:", err)
+		}
+
+		if rawCrt.Subject.OrganizationalUnit[0] != "OU" {
+			t.Fatal("Failed to verify hostname:", err)
+		}
+
+		if !time.Now().After(rawCrt.NotBefore) {
+			t.Fatal("Failed to be after NotBefore")
+		}
+
+		if !time.Now().Before(rawCrt.NotAfter) {
+			t.Fatal("Failed to be before NotAfter")
+		}
+
+		if rawCrt.MaxPathLen != test.expectMaxPathLen {
+			t.Fatalf("MaxPathLen not correctly set. Expected %d but was %d", test.expectMaxPathLen, rawCrt.MaxPathLen)
+		}
+
+		if rawCrt.MaxPathLenZero != test.expectMaxPathLenZero {
+			t.Fatal("MaxPathLenZero not correctly set")
+		}
 	}
 }
